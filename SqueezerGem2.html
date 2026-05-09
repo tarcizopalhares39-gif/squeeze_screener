@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Quant Screener Pro V4 - TTM Squeeze</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --surface-color: #0d0d0d;
+            --border-color: #222222;
+            --text-main: #e0e0e0;
+            --text-muted: #888888;
+            --accent-pos: #00ff66;
+            --accent-neg: #ff3333;
+            --highlight: #00e5ff;
+            --warning: #ffaa00;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--bg-color); color: var(--text-main); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 600px; position: relative; }
+        
+        header { display: flex; justify-content: center; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--border-color); position: relative; }
+        h1 { font-size: 1.2rem; color: var(--highlight); margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+        
+        /* Botão de Informação */
+        .info-btn { position: absolute; right: 10px; font-size: 1.2rem; color: var(--text-muted); cursor: pointer; padding: 5px; border-radius: 50%; background: none; border: 1px solid var(--border-color); width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; }
+        .info-btn:hover { color: var(--highlight); border-color: var(--highlight); }
+
+        .controls { display: flex; flex-direction: column; gap: 12px; margin: 15px 0; background: var(--surface-color); padding: 15px; border-radius: 12px; border: 1px solid var(--border-color); }
+        select, .btn-run { width: 100%; height: 48px; font-size: 1rem; border-radius: 8px; font-family: inherit; }
+        select { background-color: #1a1a1a; color: var(--text-main); border: 1px solid var(--border-color); padding: 0 10px; outline: none; }
+        .btn-run { background-color: var(--highlight); color: #000; border: none; font-weight: bold; text-transform: uppercase; cursor: pointer; }
+        
+        #log { font-size: 0.75rem; text-align: center; color: var(--text-muted); min-height: 2.5rem; line-height: 1.4; }
+        .progress-container { width: 100%; height: 4px; background-color: #1a1a1a; margin-bottom: 15px; display: none; border-radius: 2px; overflow: hidden; }
+        .progress-bar { height: 100%; width: 0%; background-color: var(--highlight); transition: width 0.2s; }
+
+        .results-grid { display: flex; flex-direction: column; gap: 10px; }
+        .card { background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .card-header { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; padding-bottom: 8px; }
+        .symbol { font-weight: bold; font-size: 1.1rem; color: #fff; text-decoration: none; }
+        .price { color: var(--highlight); font-family: 'Courier New', monospace; font-weight: bold; }
+        .metric-box { display: flex; flex-direction: column; }
+        .label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .val { font-size: 0.95rem; font-weight: bold; margin-top: 2px; }
+        .momentum-pos { color: var(--accent-pos); }
+        .momentum-neg { color: var(--accent-neg); }
+        .empty-state { text-align: center; color: var(--text-muted); padding: 40px 20px; font-style: italic; line-height: 1.5; }
+
+        /* Estilos do Modal de Ajuda */
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 20px; }
+        .modal-content { background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: 16px; padding: 25px; max-width: 500px; width: 100%; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        .modal-close { position: absolute; top: 15px; right: 20px; color: var(--text-muted); font-size: 1.5rem; font-weight: bold; cursor: pointer; }
+        .modal-close:hover { color: #fff; }
+        .modal h2 { color: var(--highlight); margin-top: 0; font-size: 1.3rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+        .modal p { color: var(--text-main); font-size: 0.9rem; line-height: 1.6; margin-bottom: 15px; }
+        .modal ul { color: var(--text-muted); font-size: 0.85rem; line-height: 1.6; padding-left: 20px; margin-bottom: 0;}
+        .modal li span { color: var(--text-main); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Squeeze Radar Pro</h1>
+        <div class="info-btn" onclick="toggleModal('flex')">ⓘ</div>
+    </header>
+
+    <div class="controls">
+        <select id="timeframe">
+            <option value="15m">15 Minutos (Day Trade)</option>
+            <option value="1h" selected>1 Hora (Intraday)</option>
+            <option value="4h">4 Horas (Swing)</option>
+            <option value="1d">1 Dia (Position)</option>
+        </select>
+        <button class="btn-run" onclick="executeScreener()">Escanear Top 50 Volume</button>
+        <div id="log">Aguardando comando...</div>
+    </div>
+
+    <div class="progress-container" id="progress-container">
+        <div class="progress-bar" id="progress-bar"></div>
+    </div>
+
+    <div id="results-list" class="results-grid">
+        <div class="empty-state">O resultado mostrará apenas os ativos do Top 50 que estão em Squeeze de volatilidade agora.</div>
+    </div>
+</div>
+
+<div id="infoModal" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="toggleModal('none')">&times;</span>
+        <h2>Como funciona o Squeeze?</h2>
+        <p>O <strong>Squeeze (Compressão)</strong> indica que a volatilidade do mercado caiu drasticamente. Imagine uma mola sendo espremida: a energia está sendo acumulada para um movimento direcional explosivo.</p>
+        <p>Matematicamente, ocorre quando as <em>Bandas de Bollinger</em> (que medem volatilidade) entram completamente dentro dos <em>Canais de Keltner</em> (que medem a amplitude média/ATR).</p>
+        <ul>
+            <li><span>Squeeze (Barras):</span> Quanto maior o número, mais tempo a mola está sendo comprimida. Uma "panela de pressão".</li>
+            <li><span>Tendência (Momentum):</span> Direção atual do preço em relação à média móvel de 20 períodos. Ajuda a prever o lado do rompimento.</li>
+            <li><span>RSI (14):</span> Se estiver muito alto (>65) ou baixo (<35) durante o Squeeze, pode indicar exaustão antes do rompimento.</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+    // Controle do Modal
+    function toggleModal(displayState) {
+        document.getElementById('infoModal').style.display = displayState;
+    }
+
+    // Fechar modal clicando fora dele
+    window.onclick = function(event) {
+        let modal = document.getElementById('infoModal');
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+
+    // Cálculos Quantitativos (Mantidos)
+    const getSMA = (d, p) => d.slice(-p).reduce((a, b) => a + b, 0) / p;
+    const getStdDev = (d, p, s) => Math.sqrt(d.slice(-p).reduce((a, b) => a + Math.pow(b - s, 2), 0) / p);
+    const getEMA = (d, p) => {
+        const k = 2 / (p + 1);
+        let e = getSMA(d.slice(0, p), p);
+        for (let i = p; i < d.length; i++) e = (d[i] - e) * k + e;
+        return e;
+    };
+    const getRSI = (c, p = 14) => {
+        let g = 0, l = 0;
+        for(let i = 1; i <= p; i++) {
+            let d = c[i] - c[i-1];
+            if(d > 0) g += d; else l -= d;
+        }
+        let ag = g/p, al = l/p;
+        for(let i = p+1; i < c.length; i++) {
+            let d = c[i] - c[i-1];
+            ag = (ag*(p-1)+(d>0?d:0))/p; al = (al*(p-1)+(d<0?-d:0))/p;
+        }
+        return al === 0 ? 100 : 100 - (100 / (1 + ag/al));
+    };
+
+    const checkSqueezeAtIdx = (idx, hi, lo, cl) => {
+        const p = 20;
+        const c = cl.slice(0, idx + 1), h = hi.slice(0, idx + 1), l = lo.slice(0, idx + 1);
+        const sma = getSMA(c, p), sd = getStdDev(c, p, sma);
+        const ema = getEMA(c, p);
+        const trs = [];
+        for(let i = c.length - p; i < c.length; i++) trs.push(Math.max(h[i]-l[i], Math.abs(h[i]-c[i-1]), Math.abs(l[i]-c[i-1])));
+        const atr = trs.reduce((a,b)=>a+b,0)/p;
+        return ((sma + 2*sd) < (ema + 1.5*atr)) && ((sma - 2*sd) > (ema - 1.5*atr));
+    };
+
+    async function executeScreener() {
+        const list = document.getElementById('results-list');
+        const runBtn = document.querySelector('.btn-run');
+        const tf = document.getElementById('timeframe').value;
+        const prog = document.getElementById('progress-bar');
+        const progCont = document.getElementById('progress-container');
+        const log = document.getElementById('log');
+
+        list.innerHTML = '';
+        runBtn.disabled = true;
+        progCont.style.display = 'block';
+
+        try {
+            log.innerText = "Rankeando moedas por volume real...";
+            const tRes = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
+            const allTickers = await tRes.json();
+
+            const top50 = allTickers
+                .filter(t => t.symbol.endsWith('USDT') && !t.symbol.includes('_') && !t.symbol.includes('INDEX'))
+                .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+                .slice(0, 50);
+
+            const vMax = (parseFloat(top50[0].quoteVolume) / 1e6).toFixed(0);
+            const vMin = (parseFloat(top50[49].quoteVolume) / 1e6).toFixed(0);
+            
+            let count = 0;
+            for (let i = 0; i < top50.length; i++) {
+                const s = top50[i].symbol;
+                log.innerHTML = `Top 1: $${vMax}M | Top 50: $${vMin}M<br>Analisando: ${s} (${i+1}/50)`;
+                prog.style.width = `${((i+1)/50)*100}%`;
+
+                const kRes = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=${tf}&limit=100`);
+                const k = await kRes.json();
+                const hi = k.map(x=>parseFloat(x[2])), lo = k.map(x=>parseFloat(x[3])), cl = k.map(x=>parseFloat(x[4]));
+
+                if (checkSqueezeAtIdx(cl.length-1, hi, lo, cl)) {
+                    count++;
+                    let streak = 0;
+                    for(let j=cl.length-1; j>=50; j--) { if(checkSqueezeAtIdx(j, hi, lo, cl)) streak++; else break; }
+                    
+                    const rsi = getRSI(cl);
+                    const ema20 = getEMA(cl, 20);
+                    const mom = cl[cl.length-1] > ema20 ? 'ALTA' : 'BAIXA';
+
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <a class="symbol" href="https://www.binance.com/br/futures/${s}" target="_blank">#${i+1} ${s}</a>
+                            <span class="price">$${cl[cl.length-1].toLocaleString()}</span>
+                        </div>
+                        <div class="metric-box">
+                            <span class="label">Squeeze</span>
+                            <span class="val" style="color:var(--warning)">${streak} barras</span>
+                        </div>
+                        <div class="metric-box">
+                            <span class="label">RSI (14)</span>
+                            <span class="val">${rsi.toFixed(1)}</span>
+                        </div>
+                        <div class="metric-box">
+                            <span class="label">Tendência</span>
+                            <span class="val ${mom === 'ALTA' ? 'momentum-pos' : 'momentum-neg'}">${mom}</span>
+                        </div>
+                        <div class="metric-box">
+                            <span class="label">Vol 24h</span>
+                            <span class="val">$${(parseFloat(top50[i].quoteVolume)/1e6).toFixed(1)}M</span>
+                        </div>
+                    `;
+                    list.appendChild(card);
+                }
+                await new Promise(r => setTimeout(r, 40));
+            }
+            log.innerHTML = `SCAN CONCLUÍDO<br>${count} ativos em Squeeze entre os 50 maiores.`;
+            if(count === 0) list.innerHTML = '<div class="empty-state">Nenhum dos 50 ativos mais negociados está em Squeeze no momento no tempo gráfico escolhido.</div>';
+        } catch (e) {
+            log.innerText = "Erro ao conectar com Binance. Verifique sua internet.";
+        } finally {
+            runBtn.disabled = false;
+            progCont.style.display = 'none';
+        }
+    }
+</script>
+
+</body>
+</html>
